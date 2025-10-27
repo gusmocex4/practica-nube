@@ -2,53 +2,29 @@ version: '3.8'
 
 services:
 
-  # 1. Base de datos PostgreSQL
   postgres-db:
     image: 'postgres:15-alpine' # Imagen más reciente y ligera
+    container_name: postgres_db
     restart: always
-    environment:
-      POSTGRES_DB: ${DATABASES_NAME}
-      POSTGRES_USER: ${DATABASES_USER}
-      POSTGRES_PASSWORD: ${DATABASES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - express_net # Renombrado para consistencia
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${DATABASES_USER}"] # Agregamos usuario
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
 
-  # 2. Servicio de la API Express
-  cfgsvcapi:
-    # Construye la imagen usando el Dockerfile en el directorio actual (.).
+  express:
     build: .
-    # El nombre de la imagen que se creará y usará
     image: express-api-image
+    container_name: express
     restart: always
-    
-    # Mapeo de puertos: ${PORT} (host) -> 3000 (contenedor Express)
-    # 3000 es el puerto que expone el Dockerfile de Node.js
     ports:
-      - ${PORT}:3000 
-      
-    # Variables de entorno para la configuración de Node.js/Express
-    environment:
-      NODE_ENV: production # Entorno de producción
-      # La URL de la BD apunta al servicio 'postgres-db'
-      DATABASE_URL: postgres://${DATABASES_USER}:${DATABASES_PASSWORD}@postgres-db/${DATABASES_NAME}
-      # Otras variables específicas de tu aplicación
-      CFGSVCAPI_SECRET_KEY: ${CFGSVCAPI_SECRET_KEY}
-      CFGSVCAPI_TIME_ZONE: "America/Caracas"
-      
-    # Depende de que la base de datos esté saludable antes de iniciar la API
+      - 3000:3000 
+    volumens:
+      -.:/usr/src/app
+      -/usr/src/app/node_modules
     networks:
       - express_net # Renombrado para consistencia
     depends_on:
-      postgres-db:
-        condition: service_healthy
+     - postgres-db
 
 # Definición de volúmenes y redes
 volumes:
