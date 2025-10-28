@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+
+  postgres-db:
+    image: 'postgres:15-alpine'
+    container_name: postgres_db
+    restart: always
+    # Asegura la lectura del archivo .env en el mismo directorio.
+    env_file:
+      - ./.env 
+    environment:
+      # Variables CRÍTICAS para la inicialización de la DB
+      POSTGRES_USER: ${DB_USER} 
+      POSTGRES_PASSWORD: ${DB_PASSWORD} 
+      POSTGRES_DB: ${DB_NAME} 
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Volume persistente para los datos
+    networks:
+      - express_net
+
+  express:
+    # Define el contexto de construcción como la carpeta 'api'
+    build: 
+      context: ./api/ 
+    image: express-api-image
+    container_name: express
+    restart: always
+    ports:
+      - 3000:3000
+    # 🚨 CORRECCIÓN CLAVE DE VOLÚMENES: 
+    volumes:
+      # Monta el código fuente local para el hot reload
+      - ./api/:/usr/src/app 
+      # Montaje anónimo: Previene que la carpeta local vacía 'node_modules' 
+      # sobrescriba los paquetes instalados por Docker (soluciona el error 'sequelize').
+      - /usr/src/app/node_modules 
+    environment:
+      # Variables de conexión que la API lee del entorno
+      DB_HOST: postgres-db # Usa el nombre del servicio como host
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      PORT: 3000
+      SECRET_KEY: "tu_clave_secreta_jwt_o_auth"
+    networks:
+      - express_net
+    # Asegura que la DB inicie antes que la API
+    depends_on:
+      - postgres-db
+
+# Definición de volúmenes para la persistencia de datos y redes
+volumes:
+  postgres_data: 
+
+networks:
+  express_net:
+    driver: bridge
+
