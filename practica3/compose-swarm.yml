@@ -1,0 +1,55 @@
+secrets:
+  db_user_passwd:
+    file: ./db_user_passwd
+  
+services:
+
+  postgres-db:
+    image: 'postgres:18.0-alpine'
+    restart: always
+    deploy:
+      replicas: 1
+    environment:
+      POSTGRES_DB: ${DATABASES_NAME}
+      POSTGRES_USER: ${DATABASES_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_user_passwd
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    secrets:
+        - db_user_passwd
+    networks:
+      - c-nube-lab_net
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+      start_period: 30s
+
+  c-nube-lab:
+    image: gusmocex4/c-nube-lab:1.0
+    restart: always
+    deploy:
+      replicas: 1
+    ports:
+      - ${PORT}:8000
+    environment:
+      # Variables de conexión que la API lee del entorno
+      DB_HOST: postgres-db # Usa el nombre del servicio como host
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      SECRET_KEY: "tu_clave_secreta_jwt_o_auth"
+    secrets:
+        - c-nube-lab_secret_key
+    networks:
+      - c-nube-lab_net
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=nfssrv01,rw"
+      device: ":/data/docker-vols/group00/postgres_data"
+
+networks:
+  c-nube-lab_net:
+    driver: overlay
